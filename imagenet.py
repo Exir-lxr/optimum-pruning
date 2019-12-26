@@ -108,7 +108,10 @@ parser.add_argument('--weight', default='', type=str, metavar='WEIGHT',
 
 parser.add_argument('--status', type=str, default='test', help='Must be test, prune or train')
 parser.add_argument('--ckp_out', type=str, default='./checkpoints/test.pth')
-
+parser.add_argument('--prune-number', type=int, default=500)
+parser.add_argument('--start-step', type=int, default=140)
+parser.add_argument('--total-step', type=int, default=5)
+parser.add_argument('--method', type=str, default='crldr')
 
 best_prec1 = 0
 
@@ -116,6 +119,9 @@ best_prec1 = 0
 def main():
     global args, best_prec1
     args = parser.parse_args()
+
+    scope = 150 - args.start_step
+    jump = scope // args.total_step
 
     if args.seed is not None:
         random.seed(args.seed)
@@ -150,10 +156,7 @@ def main():
             model.features = torch.nn.DataParallel(model.features)
             model.cuda()
         else:
-            if args.status == 'prune':
-                model = torch.nn.DataParallel(model, device_ids=[0]).cuda()
-            else:
-                model = torch.nn.DataParallel(model).cuda()
+            model = torch.nn.DataParallel(model).cuda()
     else:
         model.cuda()
         model = torch.nn.parallel.DistributedDataParallel(model)
@@ -223,14 +226,14 @@ def main():
         # train_loss, train_acc = train(train_loader, train_loader_len, model, criterion, optimizer, 150)
         validate(val_loader, val_loader_len, model, criterion)
         manager.computer_statistic()
-        manager.prune(500)
+        manager.prune(args.prune_number, args.method)
         manager.pruning_overview()
         validate(val_loader, val_loader_len, model, criterion)
         torch.save(model.state_dict(), args.ckp_out)
     elif args.status == 'train':
         manager.pruning_overview()
-        for i in range(1):
-            train(train_loader, train_loader_len, model, criterion, optimizer, 149 + i)
+        for i in range(args.total_step):
+            train(train_loader, train_loader_len, model, criterion, optimizer, 149 + jump*i)
             torch.save(model.state_dict(), args.ckp_out)
         validate(val_loader, val_loader_len, model, criterion)
         torch.save(model.state_dict(), args.ckp_out)
@@ -281,7 +284,7 @@ def train(train_loader, train_loader_len, model, criterion, optimizer, epoch):
         end = time.time()
 
         # plot progress
-        bar.suffix  = '({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
+        bar.suffix = '({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
                     batch=i + 1,
                     size=train_loader_len,
                     data=data_time.avg,

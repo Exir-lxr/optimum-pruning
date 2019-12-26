@@ -34,30 +34,30 @@ class InfoStruct(object):
         self.out_channel_num = b_cls.channel_num
 
         # forward statistic
-        self.forward_mean = torch.zeros(self.in_channel_num, dtype=torch.double)
-        self.variance = torch.zeros(self.in_channel_num, dtype=torch.double)
-        self.forward_cov = torch.zeros([self.in_channel_num, self.in_channel_num], dtype=torch.double)
+        self.forward_mean = None
+        self.variance = None
+        self.forward_cov = None
 
         # forward info
-        self.zero_variance_masked_zero = torch.zeros(self.in_channel_num, dtype=torch.double)
-        self.zero_variance_masked_one = torch.zeros(self.in_channel_num, dtype=torch.double)
-        self.de_correlation_variance = torch.zeros(self.in_channel_num, dtype=torch.double)
+        self.zero_variance_masked_zero = None
+        self.zero_variance_masked_one = None
+        self.de_correlation_variance = None
 
         # raw score for rldr-pruning
-        self.alpha = torch.zeros(self.in_channel_num, dtype=torch.double)
-        self.normalized_alpha = torch.zeros(self.in_channel_num, dtype=torch.double)
-        self.stack_op_for_weight = torch.zeros([self.in_channel_num, self.in_channel_num], dtype=torch.double)
+        self.alpha = None
+        self.normalized_alpha = None
+        self.stack_op_for_weight = None
 
         # backward statistic
-        self.grad_mean = torch.zeros(self.out_channel_num, dtype=torch.double)
-        self.grad_cov = torch.zeros([self.out_channel_num, self.out_channel_num], dtype=torch.double)
-        self.adjust_matrix = torch.zeros([self.out_channel_num, self.out_channel_num], dtype=torch.double)
+        self.grad_mean = None
+        self.grad_cov = None
+        self.adjust_matrix = None
 
         # raw score for crldr-pruning
-        self.beta = torch.zeros(self.in_channel_num, dtype=torch.double)
+        self.beta = None
 
         # weights
-        self.weight = torch.zeros([self.out_channel_num, self.in_channel_num])
+        self.weight = None
 
         # corresponding bn layer
         self.bn_module = None
@@ -69,43 +69,44 @@ class InfoStruct(object):
 
         f_cov_inverse = repaired_forward_cov.inverse()
         repaired_alpha = torch.reciprocal(torch.diag(f_cov_inverse))
-        self.de_correlation_variance.data = repaired_alpha * self.zero_variance_masked_zero
+        self.de_correlation_variance = repaired_alpha * self.zero_variance_masked_zero
 
-        self.stack_op_for_weight.data = (f_cov_inverse.t() * repaired_alpha.view(1, -1)).t()
+        self.stack_op_for_weight = (f_cov_inverse.t() * repaired_alpha.view(1, -1)).t()
 
         # fetch weights
-        self.weight.data = self.module.weight.detach()
+        self.weight = self.module.weight.detach()
 
         # score for rldr-pruning
-        self.alpha.data = torch.sum(torch.pow(torch.squeeze(self.weight), 2), dim=0) * self.de_correlation_variance
-        self.normalized_alpha.data = self.alpha / torch.norm(self.alpha)
+        self.alpha = torch.sum(torch.pow(torch.squeeze(self.weight), 2), dim=0) * self.de_correlation_variance
+        self.normalized_alpha = self.alpha / torch.norm(self.alpha)
 
         # cascade effects
         eig_value, eig_vec = torch.eig(self.grad_cov, eigenvectors=True)
-        self.adjust_matrix.data = torch.mm(torch.diag(torch.sqrt(eig_value[:, 0])), eig_vec.t()).to(torch.float)
+        self.adjust_matrix = torch.mm(torch.diag(torch.sqrt(eig_value[:, 0])), eig_vec.t()).to(torch.float)
 
         # score for crldr-pruning
-        square_sum_gamma_matrix = torch.sum(torch.pow(torch.mm(self.adjust_matrix, self.weight), 2), dim=0)
-        self.beta.data = square_sum_gamma_matrix * self.de_correlation_variance
+        square_sum_gamma_matrix = \
+            torch.sum(torch.pow(torch.mm(self.adjust_matrix, torch.squeeze(self.weight)), 2), dim=0)
+        self.beta = square_sum_gamma_matrix * self.de_correlation_variance
         return self.normalized_alpha, self.beta
 
     def compute_statistic(self):
         # compute forward statistic
-        self.forward_mean.data = self.f_cls.sum_mean / self.f_cls.counter
-        self.forward_cov.data = (self.f_cls.sum_covariance / self.f_cls.counter) - \
+        self.forward_mean = self.f_cls.module.sum_mean / self.f_cls.module.counter
+        self.forward_cov = (self.f_cls.module.sum_covariance / self.f_cls.module.counter) - \
             torch.mm(self.forward_mean.view(-1, 1), self.forward_mean.view(1, -1))
 
         # compute backward statistic
-        self.grad_mean.data = self.b_cls.sum_mean / self.b_cls.counter
-        self.grad_cov.data = (self.b_cls.sum_covariance / self.b_cls.counter) - \
+        self.grad_mean = self.b_cls.module.b_sum_mean / self.b_cls.module.b_counter
+        self.grad_cov = (self.b_cls.module.b_sum_covariance / self.b_cls.module.b_counter) - \
             torch.mm(self.grad_mean.view(-1, 1), self.grad_mean.view(1, -1))
 
         # equal 0 where variance of an activate is 0
-        self.variance.data = torch.diag(self.forward_cov)
-        self.zero_variance_masked_zero.data = torch.sign(self.variance)
+        self.variance = torch.diag(self.forward_cov)
+        self.zero_variance_masked_zero = torch.sign(self.variance)
 
         # where 0 var compensate 1
-        self.zero_variance_masked_one.data = - self.zero_variance_masked_zero + 1
+        self.zero_variance_masked_one = - self.zero_variance_masked_zero + 1
 
     def clear_zero_variance(self):
 
@@ -144,17 +145,18 @@ class InfoStruct(object):
 
     def prune_then_modify(self, index_of_channel):
 
-        self.compute_score()
-
         # update [mask]
-        channel_mask = self.pre_f_cls.read_data()
+        channel_mask = self.pre_f_cls.read_mask()
         channel_mask[index_of_channel] = 0
-        self.pre_f_cls.load_data(channel_mask)
+        self.pre_f_cls.load_mask(channel_mask)
 
         # update [weights]
 
-        new_weight = torch.squeeze(self.weight) - torch.mm(self.weight[:, index_of_channel].view(-1, 1),
-                                                           self.stack_op_for_weight[index_of_channel, :].view(1, -1))
+        new_weight = \
+            torch.squeeze(self.weight) - \
+            torch.mm(self.weight[:, index_of_channel].view(-1, 1).to(torch.double),
+                     self.stack_op_for_weight[index_of_channel, :].view(1, -1)).to(torch.float)
+
         if self.f_cls.dim == 4:
             self.weight[:, :, 0, 0] = new_weight
         else:
@@ -166,7 +168,7 @@ class InfoStruct(object):
         if self.bn_module is None:
             print('Modify biases in', self.module)
             connections = self.weight[:, index_of_channel]
-            repair_base = connections * self.forward_mean[index_of_channel]
+            repair_base = connections * self.forward_mean[index_of_channel].to(torch.float)
             self.module.bias.data -= repair_base
         else:
             self.bn_module.running_mean.data = \
@@ -178,8 +180,8 @@ class InfoStruct(object):
         self.forward_cov[:, index_of_channel] = 0
         self.forward_cov[index_of_channel, :] = 0
 
-        self.zero_variance_masked_zero.data = channel_mask
-        self.zero_variance_masked_one.data = 1 - channel_mask
+        self.zero_variance_masked_zero = channel_mask
+        self.zero_variance_masked_one = 1 - channel_mask
 
     def minimum_score(self, method):
 
@@ -192,7 +194,7 @@ class InfoStruct(object):
 
         sorted_index = torch.argsort(score)
 
-        channel_mask = self.pre_f_cls.read_data()
+        channel_mask = self.pre_f_cls.read_mask()
         for index in list(np.array(sorted_index.cpu())):
             index = int(index)
             if int(channel_mask[index]) != 0:
@@ -204,7 +206,7 @@ class InfoStruct(object):
 
     def query_channel_num(self):
 
-        channel_mask = self.pre_f_cls.read_data()
+        channel_mask = self.pre_f_cls.read_mask()
 
         return int(torch.sum(channel_mask).cpu()), int(channel_mask.shape[0])
 
@@ -236,10 +238,6 @@ class ForwardStatisticHook(object):
         module.register_buffer('sum_mean', torch.zeros(channel_num, dtype=torch.double))
         module.register_buffer('sum_covariance', torch.zeros([channel_num, channel_num], dtype=torch.double))
         module.register_buffer('counter', torch.zeros(1, dtype=torch.double))
-
-        self.sum_mean = module.sum_mean
-        self.sum_covariance = module.sum_covariance
-        self.counter = module.counter
 
     def __call__(self, module, inputs, output) -> None:
         with torch.no_grad():
@@ -276,10 +274,6 @@ class BackwardStatisticHook(object):
         module.register_buffer('b_sum_mean', torch.zeros(channel_num, dtype=torch.double))
         module.register_buffer('b_sum_covariance', torch.zeros([channel_num, channel_num], dtype=torch.double))
         module.register_buffer('b_counter', torch.zeros(1, dtype=torch.double))
-
-        self.sum_mean = module.b_sum_mean
-        self.sum_covariance = module.b_sum_covariance
-        self.counter = module.b_counter
 
     def __call__(self, module, grad_input, grad_output) -> None:
         with torch.no_grad():
@@ -377,6 +371,8 @@ class MaskManager(object):
 
                 info.clear_zero_variance()
 
+                info.compute_score()
+
     def prune(self, pruned_num, method='rldr'):
 
         for _ in range(pruned_num):
@@ -399,6 +395,7 @@ class MaskManager(object):
 
             print('pruned score: ', min_score, 'name: ', the_name)
             the_info.prune_then_modify(index)
+            the_info.compute_score()
 
     def pruning_overview(self):
 
