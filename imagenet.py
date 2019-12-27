@@ -233,7 +233,7 @@ def main():
     elif args.status == 'train':
         manager.pruning_overview()
         for i in range(args.total_step):
-            train(train_loader, train_loader_len, model, criterion, optimizer, 149 + jump*i)
+            train(train_loader, train_loader_len, model, criterion, optimizer, args.start_step + jump*(i+1))
             torch.save(model.state_dict(), args.ckp_out)
         validate(val_loader, val_loader_len, model, criterion)
         torch.save(model.state_dict(), args.ckp_out)

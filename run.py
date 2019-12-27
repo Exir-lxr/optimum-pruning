@@ -4,12 +4,28 @@ import argparse
 import subprocess
 
 
-p = subprocess.Popen(['python',
-                      'imagenet.py',
-                      '-a mobilenetv2',
-                      '-d /media/xavier/data/train_data/ImageNet',
-                      '--weight ./pretrained/mobilenetv2_0.25-b61d2159.pth',
-                      '--width-mult 0.25',
-                      '--input-size 224',
-                      '-e',
-                      '--status test'])
+ckp = 'pretrained/mobilenetv2_1.0-0c6065bc.pth'
+
+for i in range(4):
+    p = subprocess.Popen(' '.join(['python',
+                                   'imagenet.py',
+                                   '-a mobilenetv2',
+                                   '-d /home/dl/DATA/ImageNet/ILSVRC/Data/CLS-LOC',
+                                   '--weight '+ckp,
+                                   '--width-mult 1.0',
+                                   '--input-size 224',
+                                   '--status prune',
+                                   '--method crldr',
+                                   '--ckp_out ./checkpoints/crldr-'+str(i)+'.pth']), shell=True)
+    p.wait()
+    ckp = './checkpoints/crldr-'+str(i)+'.pth'
+    p = subprocess.Popen(' '.join(['python',
+                                   'imagenet.py',
+                                   '-a mobilenetv2',
+                                   '-d /home/dl/DATA/ImageNet/ILSVRC/Data/CLS-LOC',
+                                   '--weight ' + ckp,
+                                   '--width-mult 1.0',
+                                   '--input-size 224',
+                                   '--status train',
+                                   '--ckp_out ' + ckp]), shell=True)
+    p.wait()
