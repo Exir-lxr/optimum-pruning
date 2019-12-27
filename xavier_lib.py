@@ -77,7 +77,8 @@ class InfoStruct(object):
         self.weight = self.module.weight.detach()
 
         # score for rldr-pruning
-        self.alpha = torch.sum(torch.pow(torch.squeeze(self.weight), 2), dim=0) * self.de_correlation_variance
+        self.alpha = \
+            torch.sum(torch.pow(torch.squeeze(self.weight), 2), dim=0).to(torch.double) * self.de_correlation_variance
         self.normalized_alpha = self.alpha / torch.norm(self.alpha)
 
         # cascade effects
@@ -87,7 +88,7 @@ class InfoStruct(object):
         # score for crldr-pruning
         square_sum_gamma_matrix = \
             torch.sum(torch.pow(torch.mm(self.adjust_matrix, torch.squeeze(self.weight)), 2), dim=0)
-        self.beta = square_sum_gamma_matrix * self.de_correlation_variance
+        self.beta = square_sum_gamma_matrix.to(torch.double) * self.de_correlation_variance
         return self.normalized_alpha, self.beta
 
     def compute_statistic(self):
