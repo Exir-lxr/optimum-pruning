@@ -77,9 +77,7 @@ class InfoStruct(object):
         self.weight = self.module.weight.detach()
 
         # score for rldr-pruning
-        self.alpha = torch.sum(torch.pow(torch.squeeze(self.weight), 2), dim=0) * \
-            self.de_correlation_variance.to(torch.float)
-
+        self.alpha = torch.sum(torch.pow(torch.squeeze(self.weight), 2), dim=0) * self.de_correlation_variance
         self.normalized_alpha = self.alpha / torch.norm(self.alpha)
 
         # cascade effects
@@ -89,7 +87,7 @@ class InfoStruct(object):
         # score for crldr-pruning
         square_sum_gamma_matrix = \
             torch.sum(torch.pow(torch.mm(self.adjust_matrix, torch.squeeze(self.weight)), 2), dim=0)
-        self.beta = square_sum_gamma_matrix * self.de_correlation_variance.to(torch.float)
+        self.beta = square_sum_gamma_matrix * self.de_correlation_variance
         return self.normalized_alpha, self.beta
 
     def compute_statistic(self):
@@ -182,8 +180,8 @@ class InfoStruct(object):
         self.forward_cov[:, index_of_channel] = 0
         self.forward_cov[index_of_channel, :] = 0
 
-        self.zero_variance_masked_zero = channel_mask
-        self.zero_variance_masked_one = 1 - channel_mask
+        self.zero_variance_masked_zero = channel_mask.to(torch.double)
+        self.zero_variance_masked_one = (1 - channel_mask).to(torch.double)
 
     def minimum_score(self, method):
 
@@ -326,6 +324,7 @@ class MaskManager(object):
     def __init__(self, using_statistic=True):
 
         self.name_to_statistic = {}
+        self.name_module = {}
         self.bn_name = {}
         self.statistic = using_statistic
 
@@ -337,6 +336,7 @@ class MaskManager(object):
                 if sub_module.kernel_size[0] == 1:
                     pre_hook_cls = PreForwardHook(name, sub_module)
                     sub_module.register_forward_pre_hook(pre_hook_cls)
+                    self.name_module[name] = sub_module
                     if self.statistic:
                         hook_cls = ForwardStatisticHook(name, sub_module)
                         back_hook_cls = BackwardStatisticHook(name, sub_module)
@@ -347,6 +347,7 @@ class MaskManager(object):
             elif isinstance(sub_module, torch.nn.Linear):
                 pre_hook_cls = PreForwardHook(name, sub_module, dim=2)
                 sub_module.register_forward_pre_hook(pre_hook_cls)
+                self.name_module[name] = sub_module
                 if self.statistic:
                     hook_cls = ForwardStatisticHook(name, sub_module, dim=2)
                     back_hook_cls = BackwardStatisticHook(name, sub_module, dim=2)
@@ -401,17 +402,32 @@ class MaskManager(object):
 
     def pruning_overview(self):
 
-        all_channel_num = 0
-        remained_channel_num = 0
+        if self.statistic:
+            all_channel_num = 0
+            remained_channel_num = 0
 
-        for name in self.name_to_statistic:
+            for name in self.name_to_statistic:
 
-            info = self.name_to_statistic[name]
-            r, a = info.query_channel_num()
-            all_channel_num += a
-            remained_channel_num += r
+                info = self.name_to_statistic[name]
+                r, a = info.query_channel_num()
+                all_channel_num += a
+                remained_channel_num += r
 
-        print('channel number: ', remained_channel_num, '/', all_channel_num)
+            print('channel number: ', remained_channel_num, '/', all_channel_num)
+        else:
+            all_channel_num = 0
+            remained_channel_num = 0
+
+            for name in self.name_module:
+                channel_mask = self.name_module[name].mask.data
+                r = int(torch.sum(channel_mask).cpu())
+                a = int(channel_mask.shape[0])
+
+                all_channel_num += a
+                remained_channel_num += r
+                print(name, r, '/', a)
+
+            print('channel number: ', remained_channel_num, '/', all_channel_num)
 
     def reset(self):
 
