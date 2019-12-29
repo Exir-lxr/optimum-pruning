@@ -401,6 +401,19 @@ class MaskManager(object):
             the_info.prune_then_modify(index)
             the_info.compute_score()
 
+    def prune_by_threshold(self, threshold, method='rldr'):
+
+        for name in self.name_to_statistic:
+
+            info = self.name_to_statistic[name]
+
+            idx, score = info.minimum_score(method)
+            while score < threshold:
+                print('pruned score: ', score, 'name: ', name)
+                info.prune_then_modify(idx)
+                info.compute_score()
+                idx, score = info.minimum_score(method)
+
     def pruning_overview(self):
 
         if self.statistic:
@@ -415,6 +428,7 @@ class MaskManager(object):
                 remained_channel_num += r
 
             print('channel number: ', remained_channel_num, '/', all_channel_num)
+            return remained_channel_num, all_channel_num
         else:
             all_channel_num = 0
             remained_channel_num = 0
