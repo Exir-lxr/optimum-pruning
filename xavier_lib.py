@@ -190,8 +190,10 @@ class InfoStruct(object):
             score = self.normalized_alpha
         elif method == 'crldr':
             score = self.beta
+        elif method == 'min_weight':
+            score = torch.abs(self.forward_mean) / torch.norm(self.forward_mean)
         else:
-            raise Exception('method must be rldr or crldr')
+            raise Exception('method not supported')
 
         sorted_index = torch.argsort(score)
 
@@ -478,3 +480,19 @@ class MaskManager(object):
             if i > 150:
                 break
         plt.show()
+
+
+class TaylorHook(object):
+
+    def __init__(self):
+
+        self.forward = None
+        self.score = None
+
+    def forward_hook(self, module, inputs, output):
+
+        self.forward = inputs
+
+    def backward_hook(self, module, grad_input, grad_output):
+
+        self.score = torch.mean(self.forward * grad_input, dim=[0,2,3])

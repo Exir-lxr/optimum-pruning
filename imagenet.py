@@ -109,8 +109,9 @@ parser.add_argument('--weight', default='', type=str, metavar='WEIGHT',
 parser.add_argument('--status', type=str, default='test', help='Must be test, prune or train')
 parser.add_argument('--ckp_out', type=str, default='./checkpoints/test.pth')
 parser.add_argument('--prune-number', type=int, default=500)
-parser.add_argument('--start-step', type=int, default=140)
-parser.add_argument('--total-step', type=int, default=5)
+parser.add_argument('--prune-thre', type=float)
+parser.add_argument('--start-step', type=int, default=130)
+parser.add_argument('--total-step', type=int, default=2)
 parser.add_argument('--method', type=str, default='crldr')
 
 best_prec1 = 0
@@ -233,6 +234,7 @@ def main():
     elif args.status == 'train':
         manager.pruning_overview()
         for i in range(args.total_step):
+            print('like-train-step: ', args.start_step + jump*(i+1))
             train(train_loader, train_loader_len, model, criterion, optimizer, args.start_step + jump*(i+1))
             torch.save(model.state_dict(), args.ckp_out)
         validate(val_loader, val_loader_len, model, criterion)
