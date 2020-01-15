@@ -153,29 +153,29 @@ class InfoStruct(object):
 
         # update [weights]
 
-        new_weight = \
-            torch.squeeze(self.weight) - \
-            torch.mm(self.weight[:, index_of_channel].view(-1, 1).to(torch.double),
-                     self.stack_op_for_weight[index_of_channel, :].view(1, -1)).to(torch.float)
-
-        if self.f_cls.dim == 4:
-            self.weight[:, :, 0, 0] = new_weight
-        else:
-            self.weight[:, :] = new_weight
-        self.module.weight.data = self.weight
-
-        # update [bn]
-
-        if self.bn_module is None:
-            print('Modify biases in', self.module)
-            connections = self.weight[:, index_of_channel]
-            repair_base = connections * self.forward_mean[index_of_channel].to(torch.float)
-            self.module.bias.data -= repair_base
-        else:
-            self.bn_module.running_mean.data = \
-                torch.squeeze(torch.mm(new_weight, self.forward_mean.to(torch.float).view(-1, 1)))
-            self.bn_module.running_var.data = \
-                torch.diag(torch.mm(torch.mm(new_weight, self.forward_cov.to(torch.float)), new_weight.t()))
+        # new_weight = \
+        #     torch.squeeze(self.weight) - \
+        #     torch.mm(self.weight[:, index_of_channel].view(-1, 1).to(torch.double),
+        #              self.stack_op_for_weight[index_of_channel, :].view(1, -1)).to(torch.float)
+        #
+        # if self.f_cls.dim == 4:
+        #     self.weight[:, :, 0, 0] = new_weight
+        # else:
+        #     self.weight[:, :] = new_weight
+        # self.module.weight.data = self.weight
+        #
+        # # update [bn]
+        #
+        # if self.bn_module is None:
+        #     print('Modify biases in', self.module)
+        #     connections = self.weight[:, index_of_channel]
+        #     repair_base = connections * self.forward_mean[index_of_channel].to(torch.float)
+        #     self.module.bias.data -= repair_base
+        # else:
+        #     self.bn_module.running_mean.data = \
+        #         torch.squeeze(torch.mm(new_weight, self.forward_mean.to(torch.float).view(-1, 1)))
+        #     self.bn_module.running_var.data = \
+        #         torch.diag(torch.mm(torch.mm(new_weight, self.forward_cov.to(torch.float)), new_weight.t()))
 
         # update statistic
         self.forward_cov[:, index_of_channel] = 0

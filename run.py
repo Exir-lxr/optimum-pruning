@@ -6,7 +6,7 @@ import subprocess
 
 ckp = 'pretrained/mobilenetv2_1.0-0c6065bc.pth'
 
-for i in range(10):
+for i in range(1):
     p = subprocess.Popen(' '.join(['python',
                                    'imagenet.py',
                                    '-a mobilenetv2',
