@@ -16,9 +16,9 @@ for i in range(1):
                                    '--input-size 224',
                                    '--status prune',
                                    '--method min_weight',
-                                   '--ckp_out ./checkpoints/mw-'+str(i)+'.pth']), shell=True)
+                                   '--ckp_out ./checkpoints/mw-nm-'+str(i)+'.pth']), shell=True)
     p.wait()
-    ckp = './checkpoints/mw-'+str(i)+'.pth'
+    ckp = './checkpoints/mw-nm-'+str(i)+'.pth'
     p = subprocess.Popen(' '.join(['python',
                                    'imagenet.py',
                                    '-a mobilenetv2',
