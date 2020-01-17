@@ -5,8 +5,9 @@ import subprocess
 
 
 ckp = 'pretrained/mobilenetv2_1.0-0c6065bc.pth'
+name = 'exp_rldr'
 
-for i in range(1):
+for i in range(9):
     p = subprocess.Popen(' '.join(['python',
                                    'imagenet.py',
                                    '-a mobilenetv2',
@@ -15,10 +16,10 @@ for i in range(1):
                                    '--width-mult 1.0',
                                    '--input-size 224',
                                    '--status prune',
-                                   '--method min_weight',
-                                   '--ckp_out ./checkpoints/mw-nm-'+str(i)+'.pth']), shell=True)
+                                   '--method rldr',
+                                   '--ckp_out ./checkpoints/'+name+'-'+str(i)+'.pth']), shell=True)
     p.wait()
-    ckp = './checkpoints/mw-nm-'+str(i)+'.pth'
+    ckp = './checkpoints/'+name+'-'+str(i)+'.pth'
     p = subprocess.Popen(' '.join(['python',
                                    'imagenet.py',
                                    '-a mobilenetv2',

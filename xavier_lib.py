@@ -152,7 +152,7 @@ class InfoStruct(object):
 
             # update bn
             if self.bn_module is None:
-                self.module.bias -= torch.squeeze(torch.mm(delta_weight, self.forward_mean.to(torch.float).view(-1, 1)))
+                self.module.bias.data -= torch.squeeze(torch.mm(delta_weight, self.forward_mean.to(torch.float).view(-1, 1)))
             else:
                 self.bn_module.running_mean -= \
                     torch.squeeze(torch.mm(delta_weight, self.forward_mean.to(torch.float).view(-1, 1)))
@@ -180,11 +180,10 @@ class InfoStruct(object):
         # update [bn]
         if self.bn_module is None:
             print('Modify biases in', self.module)
-            self.module.bias -= torch.squeeze(torch.mm(delta_weight, self.forward_mean.to(torch.float).view(-1, 1)))
+            self.module.bias.data -= torch.squeeze(torch.mm(delta_weight, self.forward_mean.to(torch.float).view(-1, 1)))
         else:
             self.bn_module.running_mean -= \
                 torch.squeeze(torch.mm(delta_weight, self.forward_mean.to(torch.float).view(-1, 1)))
-            #self.bn_module.running_var -= #..(规整操作)
 
         # update statistic
         self.forward_cov[:, index_of_channel] = 0
