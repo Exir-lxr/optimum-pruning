@@ -5,7 +5,7 @@ import subprocess
 
 
 ckp = 'pretrained/mobilenetv2_1.0-0c6065bc.pth'
-name = 'exp_rldr'
+name = 'ma'
 
 for i in range(9):
     p = subprocess.Popen(' '.join(['python',
@@ -16,7 +16,7 @@ for i in range(9):
                                    '--width-mult 1.0',
                                    '--input-size 224',
                                    '--status prune',
-                                   '--method rldr',
+                                   '--method min_activate',
                                    '--ckp_out ./checkpoints/'+name+'-'+str(i)+'.pth']), shell=True)
     p.wait()
     ckp = './checkpoints/'+name+'-'+str(i)+'.pth'

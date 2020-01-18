@@ -199,7 +199,7 @@ class InfoStruct(object):
             score = self.normalized_alpha
         elif method == 'crldr':
             score = self.beta
-        elif method == 'min_weight':
+        elif method == 'min_activate':
             score = torch.abs(self.forward_mean) / torch.norm(self.forward_mean)
         else:
             raise Exception('method not supported')
