@@ -5,7 +5,7 @@ import subprocess
 
 
 ckp = 'pretrained/mobilenetv2_1.0-0c6065bc.pth'
-name = 'ma'
+name = 'ma-nmd'
 
 for i in range(9):
     p = subprocess.Popen(' '.join(['python',

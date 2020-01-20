@@ -165,25 +165,25 @@ class InfoStruct(object):
         self.pre_f_cls.load_mask(channel_mask)
 
         # update [weights]
-
-        delta_weight = torch.mm(self.weight[:, index_of_channel].view(-1, 1).to(torch.double),
-                                self.stack_op_for_weight[index_of_channel, :].view(1, -1)).to(torch.float)
-
-        new_weight = torch.squeeze(self.weight) - delta_weight
-
-        if self.f_cls.dim == 4:
-            self.weight[:, :, 0, 0] = new_weight
-        else:
-            self.weight[:, :] = new_weight
-        self.module.weight.data = self.weight
-
-        # update [bn]
-        if self.bn_module is None:
-            print('Modify biases in', self.module)
-            self.module.bias.data -= torch.squeeze(torch.mm(delta_weight, self.forward_mean.to(torch.float).view(-1, 1)))
-        else:
-            self.bn_module.running_mean -= \
-                torch.squeeze(torch.mm(delta_weight, self.forward_mean.to(torch.float).view(-1, 1)))
+        #
+        # delta_weight = torch.mm(self.weight[:, index_of_channel].view(-1, 1).to(torch.double),
+        #                         self.stack_op_for_weight[index_of_channel, :].view(1, -1)).to(torch.float)
+        #
+        # new_weight = torch.squeeze(self.weight) - delta_weight
+        #
+        # if self.f_cls.dim == 4:
+        #     self.weight[:, :, 0, 0] = new_weight
+        # else:
+        #     self.weight[:, :] = new_weight
+        # self.module.weight.data = self.weight
+        #
+        # # update [bn]
+        # if self.bn_module is None:
+        #     print('Modify biases in', self.module)
+        #     self.module.bias.data -= torch.squeeze(torch.mm(delta_weight, self.forward_mean.to(torch.float).view(-1, 1)))
+        # else:
+        #     self.bn_module.running_mean -= \
+        #         torch.squeeze(torch.mm(delta_weight, self.forward_mean.to(torch.float).view(-1, 1)))
 
         # update statistic
         self.forward_cov[:, index_of_channel] = 0
