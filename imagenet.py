@@ -226,7 +226,6 @@ def main():
     if args.status == 'prune':
         # train_loss, train_acc = train(train_loader, train_loader_len, model, criterion, optimizer, 150)
         validate(val_loader, val_loader_len, model, criterion)
-        manager.computer_statistic()
         manager.prune(args.prune_number, args.method)
         manager.pruning_overview()
         validate(val_loader, val_loader_len, model, criterion)

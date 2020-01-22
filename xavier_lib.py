@@ -392,6 +392,8 @@ class MaskManager(object):
 
     def prune(self, pruned_num, method='rldr'):
 
+        self.computer_statistic()
+
         for _ in range(pruned_num):
 
             min_score = 1000
