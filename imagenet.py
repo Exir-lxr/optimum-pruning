@@ -144,7 +144,7 @@ def main():
     print("=> creating model '{}'".format(args.arch))
     model = models.__dict__[args.arch](width_mult=args.width_mult)
 
-    from xavier_lib import MaskManager
+    from RldrInPruning import MaskManager
 
     if args.status == 'prune':
         manager = MaskManager(using_statistic=True)
